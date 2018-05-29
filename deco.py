@@ -1,7 +1,7 @@
-#!/usr/bin/env python
+#!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 
-from functools import update_wrapper
+from functools import update_wrapper, wraps
 
 
 def disable():
@@ -15,17 +15,28 @@ def disable():
     return
 
 
-def decorator():
+def decorator(func):
     '''
     Decorate a decorator so that it inherits the docstrings
     and stuff from the function it's decorating.
     '''
-    return
+
+    def wrapper(*args, **kwargs):
+        return func(*args, **kwargs)
+
+    # example of `update_wrapper` use
+    return update_wrapper(wrapper, func)
 
 
-def countcalls():
+def countcalls(func):
     '''Decorator that counts calls made to the function decorated.'''
-    return
+    func.calls = 0
+
+    @wraps(func)
+    def wrapper(*args, **kwargs):
+        wrapper.calls += 1
+        return func(*args, **kwargs)
+    return wrapper
 
 
 def memo():
@@ -36,12 +47,16 @@ def memo():
     return
 
 
-def n_ary():
+def n_ary(func):
     '''
     Given binary function f(x, y), return an n_ary function such
     that f(x, y, z) = f(x, f(y,z)), etc. Also allow f(x) = x.
     '''
-    return
+    @wraps(func)
+    def wrapper(x, *args):
+        return x if not args else func(x, wrapper(*args))
+
+    return wrapper
 
 
 def trace():
@@ -67,42 +82,56 @@ def trace():
     return
 
 
-@memo
+# @memo
+# @countcalls
+# @n_ary
+# def foo(a, b):
+#     return a + b
+#
+#
+# @countcalls
+# @memo
+# @n_ary
+# def bar(a, b):
+#     return a * b
+#
+#
+# @countcalls
+# @trace("####")
+# @memo
+# def fib(n):
+#     """Some doc"""
+#     return 1 if n <= 1 else fib(n-1) + fib(n-2)
+
+@decorator
 @countcalls
-@n_ary
 def foo(a, b):
+    '''Docstring'''
     return a + b
 
 
 @countcalls
-@memo
-@n_ary
 def bar(a, b):
     return a * b
 
 
-@countcalls
-@trace("####")
-@memo
-def fib(n):
-    """Some doc"""
-    return 1 if n <= 1 else fib(n-1) + fib(n-2)
-
-
 def main():
     print(foo(4, 3))
-    print(foo(4, 3, 2))
+    # print(foo(4, 3, 2))
     print(foo(4, 3))
     print("foo was called", foo.calls, "times")
+    print("foo doc: {}, foo name: {}".format(foo.__doc__, foo.__name__))
+    #
+    # print(bar(4, 3))
+    # print(bar(4, 3, 2))
+    # print(bar(4, 3, 2, 1))
+    # print("bar was called", bar.calls, "times")
+    #
+    # print(fib.__doc__)
+    # fib(3)
+    # print(fib.calls, 'calls made')
 
-    print(bar(4, 3))
-    print(bar(4, 3, 2))
-    print(bar(4, 3, 2, 1))
-    print("bar was called", bar.calls, "times")
-
-    print(fib.__doc__)
-    fib(3)
-    print(fib.calls, 'calls made')
+    ############
 
 
 if __name__ == '__main__':
