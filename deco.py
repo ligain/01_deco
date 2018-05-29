@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 
-from functools import update_wrapper, wraps
+from functools import update_wrapper, wraps, lru_cache
 
 
 def disable():
@@ -30,21 +30,29 @@ def decorator(func):
 
 def countcalls(func):
     '''Decorator that counts calls made to the function decorated.'''
-    func.calls = 0
 
     @wraps(func)
-    def wrapper(*args, **kwargs):
+    def wrapper(*args):
         wrapper.calls += 1
-        return func(*args, **kwargs)
+        return func(*args)
+
+    wrapper.calls = 0
     return wrapper
 
 
-def memo():
+def memo(func):
     '''
     Memoize a function so that it caches all return values for
     faster future lookups.
     '''
-    return
+
+    @wraps(func)
+    @lru_cache()
+    def wrapper(*args):
+        result = func(*args)
+        wrapper.__dict__.update(vars(func))
+        return result
+    return wrapper
 
 
 def n_ary(func):
@@ -82,18 +90,18 @@ def trace():
     return
 
 
-# @memo
-# @countcalls
-# @n_ary
-# def foo(a, b):
-#     return a + b
-#
-#
-# @countcalls
-# @memo
-# @n_ary
-# def bar(a, b):
-#     return a * b
+@memo
+@countcalls
+@n_ary
+def foo(a, b):
+    return a + b
+
+
+@countcalls
+@memo
+@n_ary
+def bar(a, b):
+    return a * b
 #
 #
 # @countcalls
@@ -103,30 +111,29 @@ def trace():
 #     """Some doc"""
 #     return 1 if n <= 1 else fib(n-1) + fib(n-2)
 
-@decorator
-@countcalls
-def foo(a, b):
-    '''Docstring'''
-    return a + b
-
-
-@countcalls
-def bar(a, b):
-    return a * b
+# @memo
+# @countcalls
+# @n_ary
+# def foo(a, b):
+#     '''Docstring'''
+#     return a + b
 
 
 def main():
     print(foo(4, 3))
-    # print(foo(4, 3, 2))
+    print(foo(4, 3, 2))
     print(foo(4, 3))
     print("foo was called", foo.calls, "times")
-    print("foo doc: {}, foo name: {}".format(foo.__doc__, foo.__name__))
-    #
-    # print(bar(4, 3))
-    # print(bar(4, 3, 2))
-    # print(bar(4, 3, 2, 1))
-    # print("bar was called", bar.calls, "times")
-    #
+    print("foo cache: {}".format(foo.cache_info()))
+
+    print(bar(4, 4))
+    print(bar(4, 4))
+    print(bar(4, 4))
+    print(bar(4, 3, 2))
+    print(bar(4, 3, 2, 1))
+    print("bar was called", bar.calls, "times")
+    print("bar cache info: {}".format(bar.__wrapped__.cache_info()))
+
     # print(fib.__doc__)
     # fib(3)
     # print(fib.calls, 'calls made')
