@@ -4,7 +4,7 @@
 from functools import update_wrapper, wraps, lru_cache
 
 
-def disable():
+def disable(func):
     '''
     Disable a decorator by re-assigning the decorator's name
     to this function. For example, to turn off memoization:
@@ -12,7 +12,13 @@ def disable():
     >>> memo = disable
 
     '''
-    return
+
+    @wraps(func)
+    def wrapper(*args):
+        if hasattr(func, '__wrapped__'):
+            return func.__wrapped__(*args)
+        return func(*args)
+    return wrapper
 
 
 def decorator(func):
@@ -67,7 +73,7 @@ def n_ary(func):
     return wrapper
 
 
-def trace():
+def trace(trace_line='____'):
     '''Trace calls made to function decorated.
 
     @trace("____")
@@ -87,7 +93,38 @@ def trace():
      <-- fib(3) == 3
 
     '''
-    return
+    def top_wrapper(func):
+        indent = 0
+
+        @wraps(func)
+        def wrapper(*args):
+            nonlocal indent
+            func_name = func.__name__
+            func_args = ','.join(map(str, args))
+
+            if indent == 0:
+                print('--> {func_name}({func_args})'.format(
+                    func_name=func_name,
+                    func_args=func_args
+                ))
+            else:
+                print('{tabulator} --> {func_name}({func_args})'.format(
+                    tabulator=trace_line * indent,
+                    func_name=func_name,
+                    func_args=func_args
+                ))
+            indent += 1
+            result = func(*args)
+            indent -= 1
+            print('{tabulator} <-- {func_name}({func_args}) == {result}'.format(
+                tabulator=trace_line * indent,
+                func_name=func_name,
+                func_args=func_args,
+                result=result
+            ))
+            return result
+        return wrapper
+    return top_wrapper
 
 
 @memo
@@ -102,21 +139,14 @@ def foo(a, b):
 @n_ary
 def bar(a, b):
     return a * b
-#
-#
-# @countcalls
-# @trace("####")
-# @memo
-# def fib(n):
-#     """Some doc"""
-#     return 1 if n <= 1 else fib(n-1) + fib(n-2)
 
-# @memo
-# @countcalls
-# @n_ary
-# def foo(a, b):
-#     '''Docstring'''
-#     return a + b
+
+@countcalls
+@trace("####")
+@memo
+def fib(n):
+    """Some doc"""
+    return 1 if n <= 1 else fib(n-1) + fib(n-2)
 
 
 def main():
@@ -124,7 +154,7 @@ def main():
     print(foo(4, 3, 2))
     print(foo(4, 3))
     print("foo was called", foo.calls, "times")
-    print("foo cache: {}".format(foo.cache_info()))
+    # print("foo cache: {}".format(foo.cache_info()))
 
     print(bar(4, 4))
     print(bar(4, 4))
@@ -132,13 +162,11 @@ def main():
     print(bar(4, 3, 2))
     print(bar(4, 3, 2, 1))
     print("bar was called", bar.calls, "times")
-    print("bar cache info: {}".format(bar.__wrapped__.cache_info()))
+    # print("bar cache info: {}".format(bar.__wrapped__.cache_info()))
 
-    # print(fib.__doc__)
-    # fib(3)
-    # print(fib.calls, 'calls made')
-
-    ############
+    print(fib.__doc__)
+    fib(3)
+    print(fib.calls, 'calls made')
 
 
 if __name__ == '__main__':
